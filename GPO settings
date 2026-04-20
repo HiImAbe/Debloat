@@ -1,0 +1,389 @@
+# Comprehensive GPO hardening with explanations
+
+All paths are under **Computer Configuration → Administrative Templates** unless noted.
+
+## Note on Windows Error Reporting
+
+WER (service: **WerSvc**) catches crashes, writes local dumps, and optionally uploads to Microsoft. Disable the upload, keep the service — you'll still get local crash diagnostics.
+
+---
+
+## 1. Data Collection and telemetry core
+
+Path: **Windows Components → Data Collection and Preview Builds**
+
+- **Allow Diagnostic Data** → Enabled, "Diagnostic data off" (Enterprise) or "Send required diagnostic data" (Pro)
+  - Stops the DiagTrack service from collecting and uploading app usage, feature telemetry, and performance data to Microsoft on a timer
+- **Do not show feedback notifications** → Enabled
+  - Stops "How do you feel about Windows?" popups
+- **Disable pre-release features or settings** → Enabled
+  - Stops the machine from opting into experimental A/B tests Microsoft runs silently
+- **Toggle user control over Insider builds** → Disabled
+  - Prevents users from joining the Insider program and pulling preview builds
+- **Limit Diagnostic Log Collection** → Enabled
+  - Restricts the extra log bundles telemetry collects beyond the baseline
+- **Limit Dump Collection** → Enabled
+  - Stops auto-upload of full memory dumps to Microsoft
+- **Configure telemetry opt-in setting user interface** → Enabled, "Disable telemetry opt-in Settings"
+  - Hides the Settings UI so users can't turn telemetry back on
+- **Allow device name to be sent in Windows diagnostic data** → Disabled
+  - Strips hostname from anything that does leak out
+
+## 2. Windows Error Reporting
+
+Path: **Windows Components → Windows Error Reporting**
+
+- **Disable Windows Error Reporting** → Disabled (counterintuitive — "Disabled" here keeps WER available)
+  - Keeps crash dumps writing locally to `%LOCALAPPDATA%\CrashDumps` and Event Log for your own troubleshooting
+- **Do not send additional data** → Enabled
+  - Blocks the second-stage upload where WER asks to send extra files
+- **Send data when connected to a restricted/cost network** → Disabled
+  - Prevents upload on metered connections
+- **Automatically send memory dumps for OS-generated error reports** → Disabled
+  - Stops silent upload of kernel dumps
+
+Path: **Windows Components → Windows Error Reporting → Consent**
+
+- **Configure Default consent** → Enabled, "Always ask before sending data"
+  - Forces a prompt instead of silent upload
+
+## 3. Internet Communication settings (catch-all)
+
+Path: **System → Internet Communication Management → Internet Communication settings**
+
+- **Turn off Windows Network Connectivity Status Indicator active tests** → Enabled
+  - Stops the constant ping to `msftconnecttest.com` that Windows uses to draw the tray internet icon — big chatter reduction
+- **Turn off Windows Customer Experience Improvement Program** → Enabled
+  - Disables the legacy CEIP data channel (separate from modern telemetry)
+- **Turn off Search Companion content file updates** → Enabled
+  - Stops periodic download of search assistant data
+- **Turn off handwriting recognition error reporting** → Enabled
+  - Handwriting subsystem stops phoning home
+- **Turn off handwriting personalization data sharing** → Enabled
+  - Stops upload of your handwriting samples for "improvement"
+- **Turn off printing over HTTP** → Enabled
+  - Disables IPP outbound traffic for printers you don't use that way
+- **Turn off downloading of print drivers over HTTP** → Enabled
+  - Blocks driver downloads from Microsoft's HTTP driver server
+- **Turn off the "Publish to Web" task for files and folders** → Enabled
+  - Removes the Explorer option that would upload files to a web service
+- **Turn off Internet download for Web publishing and online ordering wizards** → Enabled
+  - Disables the provider list download these wizards use
+- **Turn off Internet File Association service** → Enabled
+  - Stops Windows from asking Microsoft online "what app opens this extension I don't know"
+- **Turn off Internet Connection Wizard if URL refers to Microsoft.com** → Enabled
+  - Blocks the ICW from calling Microsoft during setup
+- **Turn off Registration if URL refers to Microsoft.com** → Enabled
+  - Blocks the old product registration ping
+- **Turn off Event Viewer "Events.asp" links** → Enabled
+  - Removes the "More information" link in Event Viewer that fetches from Microsoft
+- **Turn off Help and Support Center "Did you know?" content** → Enabled
+  - Stops help content from being refreshed online
+- **Turn off Help and Support Center Microsoft Knowledge Base search** → Enabled
+  - Disables the online KB search in help
+- **Turn off Automatic Root Certificates Update** → Enabled (with caution)
+  - Stops automatic download of new root CA certs — warning: can break TLS to sites with newer roots if you don't manage certs manually
+
+## 4. Cloud Content / ads / Start menu suggestions
+
+Path: **Windows Components → Cloud Content**
+
+- **Turn off Microsoft consumer experiences** → Enabled
+  - Stops Windows from installing "suggested" apps (Candy Crush, Spotify, etc.) and showing Start menu promotions
+- **Turn off cloud consumer account state content** → Enabled
+  - Blocks personalized content fetched based on your MSA
+- **Turn off cloud optimized content** → Enabled
+  - Stops the dynamic content downloads that rotate through Windows
+- **Do not show Windows tips** → Enabled
+  - Kills the "tip of the day" popups that fetch content online
+- **Do not suggest third-party content in Windows spotlight** → Enabled
+  - Stops third-party promos from appearing on lock screen
+- **Turn off Windows Spotlight on lock screen** → Enabled
+  - Disables the rotating Bing images that pull fresh content daily
+- **Turn off Windows Spotlight features** → Enabled
+  - Kills Spotlight across the whole OS, not just lock screen
+- **Turn off Windows Spotlight on Settings** → Enabled
+  - Removes the suggestion cards that appear in Settings
+
+## 5. Search / Cortana
+
+Path: **Windows Components → Search**
+
+- **Allow Cortana** → Disabled
+  - Turns off Cortana entirely — stops voice processing, personalization pings, and the whole Cortana background stack
+- **Allow Cortana above lock screen** → Disabled
+  - Extra layer blocking Cortana from the lock screen
+- **Allow search and Cortana to use location** → Disabled
+  - Stops search from using GPS/Wi-Fi positioning for results
+- **Don't search the web or display web results in Search** → Enabled
+  - This is the big one — every keystroke in the Start menu currently hits Bing. This stops that
+- **Set what information is shared in Search** → Enabled, "Anonymous info"
+  - Reduces data sent with any remaining searches
+- **Allow Cloud Search** → Disabled
+  - Stops searching across cloud services (OneDrive, Outlook) when you use local search
+- **Allow indexing of encrypted files** → Disabled
+  - Security hygiene, not traffic-related
+
+## 6. Edge Update service
+
+Path: **Microsoft Edge Update → Applications** (requires MSEdgeUpdate ADMX)
+
+- **Update policy override default** → Enabled, "Updates disabled"
+  - Stops the Edge updater service from reaching out every few hours to check for new versions
+
+Path: **Microsoft Edge Update → Applications → Microsoft Edge**
+
+- **Update policy override** → Enabled, "Updates disabled"
+  - Same, specifically for the Edge browser app
+
+Path: **Microsoft Edge Update → Preferences**
+
+- **Auto-update check period override** → Enabled, 0 minutes
+  - Sets the check interval to zero, which means "never"
+
+## 7. Edge browser
+
+Path: **Microsoft Edge**
+
+- **Configure Edge startup boost** → Disabled
+  - Stops Edge from pre-launching hidden processes at logon to "feel fast" when you click the icon
+- **Continue running background apps after Microsoft Edge closes** → Disabled
+  - When you close Edge, it actually closes — no lingering helper processes
+- **Enable browser background mode** → Disabled
+  - Same idea, different setting — kills the background service that handles notifications after close
+- **Automatically send diagnostic data** → Disabled
+  - Stops Edge's built-in telemetry uploads
+- **Send site information to improve Microsoft services** → Disabled
+  - Stops URL/site data from being sent for "service improvement"
+- **Allow personalization of ads, search, and news by sending browsing history to Microsoft** → Disabled
+  - Stops Edge from shipping your browsing history to Microsoft for ad targeting
+- **Enable experimentation** → Disabled
+  - Opts out of the A/B tests Edge runs silently
+- **Configure Do Not Track** → Enabled
+  - Sends DNT header with web requests (weak but free)
+- **Enable network prediction** → Disabled
+  - Stops Edge from speculatively opening TCP connections and DNS lookups for sites it guesses you'll visit
+- **Allow suggestions from local providers on blank pages** → Disabled
+  - No auto-content on new tab page
+- **Enable search suggestions** → Disabled
+  - Stops every address bar keystroke from hitting Bing for autocomplete
+- **Show recommendations in the Edge menu** → Disabled
+  - Removes promoted content in the hamburger menu
+- **Hide the First-run experience and splash screen** → Enabled
+  - Skips the "welcome" setup flow that makes online calls
+- **Configure Edge Discover** → Disabled
+  - Kills the Discover sidebar (fetches content continuously)
+- **Configure Shopping in Microsoft Edge** → Disabled
+  - Disables the shopping/coupon feature that scans pages and calls out
+- **Enable Follow service in Microsoft Edge** → Disabled
+  - Stops the feed-following service that polls for updates
+
+## 8. Chrome Update service
+
+Path: **Google → Google Update → Applications** (requires Chrome ADMX)
+
+- **Update policy override default** → Enabled, "Updates disabled"
+  - Stops GoogleUpdate.exe from background update checks
+
+Path: **Google → Google Update → Applications → Google Chrome**
+
+- **Update policy override** → Enabled, "Updates disabled"
+  - Same, for Chrome specifically
+
+Path: **Google → Google Update → Preferences**
+
+- **Auto-update check period override** → Enabled, 0 minutes
+  - Sets update check interval to never
+
+## 9. Chrome browser
+
+Path: **Google → Google Chrome**
+
+- **Continue running background apps when Google Chrome is closed** → Disabled
+  - Closes Chrome processes when you close the window — no background extensions, no persistent helpers
+- **Enables or disables metrics reporting** → Disabled
+  - Stops Chrome's UMA telemetry uploads
+- **Enable network prediction** → Enabled, "Do not predict actions on any network connection"
+  - Stops preconnect, DNS prefetch, and speculative resource loading
+- **Enable search suggestions** → Disabled
+  - Omnibox keystrokes no longer hit Google for autocomplete
+- **Enable URL-keyed anonymized data collection** → Disabled
+  - Stops Chrome from uploading URLs you visit for feature improvement
+- **Enable or disable spell checking web service** → Disabled
+  - Stops Chrome's enhanced spell check (sends text to Google) — falls back to local
+- **Allow user feedback** → Disabled
+  - Removes the "Report an issue" feature that uploads data
+- **Enable Safe Browsing** → Your call
+  - Disabling stops reputation pings on every download/URL, but you lose malware protection
+
+## 10. OneDrive
+
+Path: **Windows Components → OneDrive**
+
+- **Prevent the usage of OneDrive for file storage** → Enabled
+  - Blocks OneDrive client from running at all — stops the sync daemon, login attempts, and folder scanning
+- **Prevent OneDrive from generating network traffic until the user signs in** → Enabled
+  - If you don't fully disable, at least stops OneDrive from chattering before login
+
+## 11. Microsoft Store
+
+Path: **Windows Components → Store**
+
+- **Turn off Automatic Download and Install of updates** → Enabled
+  - Stops the Store service from polling for app updates in the background
+- **Turn off the offer to update to the latest version of Windows** → Enabled
+  - Stops the "Windows 11 is available" kind of upsell checks
+
+## 12. Location services
+
+Path: **Windows Components → Location and Sensors**
+
+- **Turn off location** → Enabled
+  - Disables the Windows Location Service, which otherwise keeps a warm Wi-Fi/cellular scan running for fast fixes
+- **Turn off location scripting** → Enabled
+  - Blocks script access to location
+- **Turn off sensors** → Enabled
+  - Kills the sensor framework entirely if you don't need it
+
+Path: **Windows Components → Location and Sensors → Windows Location Provider**
+
+- **Turn off Windows Location Provider** → Enabled
+  - Stops the provider that talks to Microsoft's location API
+
+## 13. Maps
+
+Path: **Windows Components → Maps**
+
+- **Turn off Automatic Download and Update of Map Data** → Enabled
+  - Maps app won't pull regional map tiles in the background
+- **Turn off unsolicited network traffic on the Offline Maps settings page** → Enabled
+  - Offline Maps page itself won't phone home when you open it
+
+## 14. Speech / typing / inking
+
+Path: **Control Panel → Regional and Language Options**
+
+- **Allow users to enable online speech recognition services** → Disabled
+  - Stops cloud speech recognition; forces local-only
+
+Path: **Windows Components → Speech**
+
+- **Allow Automatic Update of Speech Data** → Disabled
+  - Language/voice model files don't sync in the background
+
+Path: **Windows Components → Text Input**
+
+- **Improve inking and typing recognition** → Disabled
+  - Stops upload of handwriting/typing samples to train Microsoft's models
+
+## 15. Delivery Optimization
+
+Path: **Windows Components → Delivery Optimization**
+
+- **Download Mode** → Enabled, "HTTP only" (99) or "Bypass" (100)
+  - Stops your machine from participating in peer-to-peer Windows Update sharing — no uploading update chunks to strangers, no seeding to other PCs
+
+## 16. Windows Update
+
+Path: **Windows Components → Windows Update → Manage end user experience**
+
+- **Configure Automatic Updates** → Enabled, "Notify for download and auto install"
+  - You control when updates download instead of Windows doing it whenever
+
+Path: **Windows Components → Windows Update → Manage updates offered from Windows Update**
+
+- **Do not include drivers with Windows Updates** → Enabled
+  - Skips driver downloads through WU (you'll manage drivers separately)
+
+## 17. Game DVR / Xbox background
+
+Path: **Windows Components → Windows Game Recording and Broadcasting**
+
+- **Enables or disables Windows Game Recording and Broadcasting** → Disabled
+  - Stops Game DVR's background recording service and the Xbox-connected chatter
+
+## 18. News and interests / Widgets
+
+Path: **Windows Components → News and interests**
+
+- **Enable news and interests on the taskbar** → Disabled
+  - Removes the taskbar widget that constantly fetches news/weather
+
+Path: **Windows Components → Widgets**
+
+- **Allow widgets** → Disabled
+  - Kills the Widgets board in Windows 11 (a continuous content feed)
+
+## 19. Push notifications
+
+Path: **Windows Components → Push Notifications**
+
+- **Turn off notifications network usage** → Enabled
+  - Stops WNS (Windows Notification Service) from maintaining an open connection to Microsoft for app notifications
+- **Turn off tile notifications** → Enabled
+  - Stops live tile updates that pull content
+
+## 20. Sync your settings
+
+Path: **Windows Components → Sync your settings**
+
+- **Do not sync** → Enabled
+  - Stops Windows from syncing themes, passwords, language, etc. to your Microsoft account across devices
+
+## 21. Device driver search
+
+Path: **System → Device Installation**
+
+- **Specify search order for device driver source locations** → Enabled, "Do not search Windows Update"
+  - When you plug in hardware, Windows won't reach out to WU for drivers
+- **Prevent device metadata retrieval from the Internet** → Enabled
+  - Stops Windows from fetching device icons/names from Microsoft when you plug in hardware
+
+## 22. Autoplay
+
+Path: **Windows Components → AutoPlay Policies**
+
+- **Turn off Autoplay** → Enabled, "All drives"
+  - Security-focused; prevents autorun when USB/CD is inserted — unrelated to network but good hygiene
+
+## 23. Find My Device
+
+Path: **Windows Components → Find My Device**
+
+- **Turn On/Off Find My Device** → Disabled
+  - Stops the service that reports location to Microsoft for device recovery
+
+## 24. RSS feeds / content view
+
+Path: **Windows Components → RSS Feeds**
+
+- **Turn off background synchronization for feeds and Web Slices** → Enabled
+  - Stops the Common Feed List from polling subscribed feeds on a timer
+- **Prevent automatic discovery of feeds and Web Slices** → Enabled
+  - Stops IE/Explorer from probing pages for feeds
+
+## 25. Font download
+
+Path: **Network → Fonts**
+
+- **Enable Font Providers** → Disabled
+  - Stops Windows from downloading additional fonts on-demand from Microsoft's font service
+
+## 26. IPv6 transition technologies (optional)
+
+Path: **Network → TCPIP Settings → IPv6 Transition Technologies**
+
+- **Set Teredo State** → Enabled, "Disabled State"
+  - Disables Teredo tunneling (NAT traversal for IPv6 over IPv4); it maintains an open UDP tunnel to a Microsoft relay
+- **Set 6to4 State** → Enabled, "Disabled State"
+  - Disables 6to4 transitional tunneling
+- **Set ISATAP State** → Enabled, "Disabled State"
+  - Disables ISATAP — only relevant in specific enterprise IPv6 scenarios
+
+Only apply these if you're fully IPv4 or native IPv6 — Teredo especially opens a background tunnel you probably don't want.
+
+---
+
+## Order of operations
+
+Load required ADMX files into `C:\Windows\PolicyDefinitions` first (Windows 11 ADMX, Edge, Edge Update, Chrome, Chrome Update, OneDrive). Apply in batches, reboot between, and verify with `gpresult /h report.html`. Watch the result with Task Manager and `Get-NetTCPConnection` at idle — you should see a dramatic drop in background processes and outbound connections.
