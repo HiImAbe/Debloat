@@ -1,0 +1,130 @@
+function Set-PdfDefault {
+  param(
+    [Parameter(Mandatory)][string] $ProgId,
+    [string] $Extension = '.pdf'
+  )
+
+  function Get-ShiftRight {
+    param([long] $iValue, [int] $iCount)
+    if ($iValue -band 0x80000000) { ($iValue -shr $iCount) -bxor 0xFFFF0000 }
+    else { $iValue -shr $iCount }
+  }
+  function Get-Long { param([byte[]]$Bytes, [int]$Index = 0) [BitConverter]::ToInt32($Bytes, $Index) }
+  function Convert-Int32 { param([long]$Value) [BitConverter]::ToInt32([BitConverter]::GetBytes($Value), 0) }
+
+  function Get-Hash {
+    param([string] $BaseInfo)
+    [byte[]] $bytesBaseInfo = [System.Text.Encoding]::Unicode.GetBytes($BaseInfo)
+    $bytesBaseInfo += 0x00, 0x00
+    $md5 = New-Object System.Security.Cryptography.MD5CryptoServiceProvider
+    [byte[]] $bytesMD5 = $md5.ComputeHash($bytesBaseInfo)
+    $lengthBase = ($BaseInfo.Length * 2) + 2
+    $length = (($lengthBase -band 4) -le 1) + (Get-ShiftRight $lengthBase 2) - 1
+    if ($length -le 1) { return "" }
+
+    $m = @{ PDATA=0; CACHE=0; COUNTER=0; OUTHASH1=0; OUTHASH2=0
+            MD51 = ((Get-Long $bytesMD5) -bor 1) + 0x69FB0000L
+            MD52 = ((Get-Long $bytesMD5 4) -bor 1) + 0x13DB0000L }
+    $m.COUNTER = (Get-ShiftRight ($length - 2) 1) + 1
+    while ($m.COUNTER) {
+      $R0  = Convert-Int32 ((Get-Long $bytesBaseInfo $m.PDATA) + [long]$m.OUTHASH1)
+      $R1  = Convert-Int32 (Get-Long $bytesBaseInfo ($m.PDATA + 4))
+      $m.PDATA += 8
+      $R2a = Convert-Int32 (($R0 * [long]$m.MD51) - (0x10FA9605L * (Get-ShiftRight $R0 16)))
+      $R2b = Convert-Int32 ((0x79F8A395L * [long]$R2a) + (0x689B6B9FL * (Get-ShiftRight $R2a 16)))
+      $R3  = Convert-Int32 ((0xEA970001L * $R2b) - (0x3C101569L * (Get-ShiftRight $R2b 16)))
+      $R4  = Convert-Int32 ($R3 + $R1)
+      $R5  = Convert-Int32 ($m.CACHE + $R3)
+      $R6a = Convert-Int32 (($R4 * [long]$m.MD52) - (0x3CE8EC25L * (Get-ShiftRight $R4 16)))
+      $R6b = Convert-Int32 ((0x59C3AF2DL * $R6a) - (0x2232E0F1L * (Get-ShiftRight $R6a 16)))
+      $m.OUTHASH1 = Convert-Int32 ((0x1EC90001L * $R6b) + (0x35BD1EC9L * (Get-ShiftRight $R6b 16)))
+      $m.OUTHASH2 = Convert-Int32 ([long]$R5 + [long]$m.OUTHASH1)
+      $m.CACHE = [long]$m.OUTHASH2
+      $m.COUNTER--
+    }
+    [byte[]] $outHash = New-Object byte[] 16
+    [BitConverter]::GetBytes($m.OUTHASH1).CopyTo($outHash, 0)
+    [BitConverter]::GetBytes($m.OUTHASH2).CopyTo($outHash, 4)
+
+    $m = @{ PDATA=0; CACHE=0; COUNTER=0; OUTHASH1=0; OUTHASH2=0
+            MD51 = (Get-Long $bytesMD5) -bor 1
+            MD52 = (Get-Long $bytesMD5 4) -bor 1 }
+    $m.COUNTER = (Get-ShiftRight ($length - 2) 1) + 1
+    while ($m.COUNTER) {
+      $R0  = Convert-Int32 ((Get-Long $bytesBaseInfo $m.PDATA) + [long]$m.OUTHASH1)
+      $m.PDATA += 8
+      $R1a = Convert-Int32 ($R0 * [long]$m.MD51)
+      $R1b = Convert-Int32 ((0xB1110000L * $R1a) - (0x30674EEFL * (Get-ShiftRight $R1a 16)))
+      $R2a = Convert-Int32 ((0x5B9F0000L * $R1b) - (0x78F7A461L * (Get-ShiftRight $R1b 16)))
+      $R2b = Convert-Int32 ((0x12CEB96DL * (Get-ShiftRight $R2a 16)) - (0x46930000L * $R2a))
+      $R3  = Convert-Int32 ((0x1D830000L * $R2b) + (0x257E1D83L * (Get-ShiftRight $R2b 16)))
+      $R4a = Convert-Int32 ([long]$m.MD52 * ([long]$R3 + (Get-Long $bytesBaseInfo ($m.PDATA - 4))))
+      $R4b = Convert-Int32 ((0x16F50000L * $R4a) - (0x5D8BE90BL * (Get-ShiftRight $R4a 16)))
+      $R5a = Convert-Int32 ((0x96FF0000L * $R4b) - (0x2C7C6901L * (Get-ShiftRight $R4b 16)))
+      $R5b = Convert-Int32 ((0x2B890000L * $R5a) + (0x7C932B89L * (Get-ShiftRight $R5a 16)))
+      $m.OUTHASH1 = Convert-Int32 ((0x9F690000L * $R5b) - (0x405B6097L * (Get-ShiftRight $R5b 16)))
+      $m.OUTHASH2 = Convert-Int32 ([long]$m.OUTHASH1 + $m.CACHE + $R3)
+      $m.CACHE = [long]$m.OUTHASH2
+      $m.COUNTER--
+    }
+    [BitConverter]::GetBytes($m.OUTHASH1).CopyTo($outHash, 8)
+    [BitConverter]::GetBytes($m.OUTHASH2).CopyTo($outHash, 12)
+
+    [byte[]] $final = New-Object byte[] 8
+    [BitConverter]::GetBytes(((Get-Long $outHash 8) -bxor (Get-Long $outHash))).CopyTo($final, 0)
+    [BitConverter]::GetBytes(((Get-Long $outHash 12) -bxor (Get-Long $outHash 4))).CopyTo($final, 4)
+    [Convert]::ToBase64String($final)
+  }
+
+  # Pull user experience string out of shell32.dll (the GUID changes between Windows builds)
+  $shell32 = Join-Path ([Environment]::GetFolderPath('SystemX86')) 'Shell32.dll'
+  $fs = [IO.File]::Open($shell32, 'Open', 'Read', 'ReadWrite')
+  $bytes = (New-Object IO.BinaryReader $fs).ReadBytes(5MB); $fs.Close()
+  $data = [Text.Encoding]::Unicode.GetString($bytes)
+  $p1 = $data.IndexOf('User Choice set via Windows User Experience')
+  $p2 = $data.IndexOf('}', $p1)
+  $userExperience = if ($p1 -ge 0) { $data.Substring($p1, $p2 - $p1 + 1) }
+                    else { 'User Choice set via Windows User Experience {D18B6DD5-6124-4341-9318-804003BAFA0B}' }
+
+  $userSid = (New-Object Security.Principal.NTAccount([Environment]::UserName)).Translate([Security.Principal.SecurityIdentifier]).Value.ToLower()
+
+  $now = [DateTime]::Now
+  $dt = [DateTime]::new($now.Year, $now.Month, $now.Day, $now.Hour, $now.Minute, 0)
+  $ft = $dt.ToFileTime()
+  $hexDate = (($ft -shr 32).ToString('X8') + ($ft -band 0xFFFFFFFFL).ToString('X8')).ToLower()
+
+  $baseInfo = "$Extension$userSid$ProgId$hexDate$userExperience".ToLower()
+  $hash = Get-Hash $baseInfo
+
+  # Delete the existing UserChoice (ACL blocks direct writes, so use RegDeleteKey via P/Invoke)
+  $deleter = @'
+using System;
+using System.Runtime.InteropServices;
+namespace RegUtil {
+  public class K {
+    [DllImport("advapi32.dll", CharSet = CharSet.Unicode)]
+    private static extern uint RegDeleteKey(UIntPtr hKey, string subKey);
+    public static void Del(string key) { RegDeleteKey((UIntPtr)0x80000001u, key); }
+  }
+}
+'@
+  try { Add-Type -TypeDefinition $deleter } catch {}
+  [RegUtil.K]::Del("Software\Microsoft\Windows\CurrentVersion\Explorer\FileExts\$Extension\UserChoice")
+
+  # Write new UserChoice
+  $keyPath = "HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\FileExts\$Extension\UserChoice"
+  [Microsoft.Win32.Registry]::SetValue($keyPath, 'Hash',   $hash)
+  [Microsoft.Win32.Registry]::SetValue($keyPath, 'ProgId', $ProgId)
+
+  # Tell Explorer to refresh
+  Add-Type -MemberDefinition @'
+[DllImport("Shell32.dll")] private static extern int SHChangeNotify(int e, int f, IntPtr a, IntPtr b);
+public static void Refresh() { SHChangeNotify(0x8000000, 0, IntPtr.Zero, IntPtr.Zero); }
+'@ -Namespace SH -Name N -ErrorAction SilentlyContinue
+  [SH.N]::Refresh()
+
+  Write-Host "Set $Extension -> $ProgId"
+}
+
+# Usage:
+Set-PdfDefault -ProgId 'AcroExch.Document.DC'
