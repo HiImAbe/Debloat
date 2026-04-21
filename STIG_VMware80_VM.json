@@ -1,0 +1,350 @@
+{
+    "STIGInfo": {
+        "Name": "VMware vSphere 8.0 Virtual Machine STIG",
+        "Version": "2",
+        "Release": "1",
+        "Published": "2024-08-01"
+    },
+    "Vulnerabilities": {
+        "V-258703": {
+            "Title": "Virtual machines (VMs) must have copy operations disabled.",
+            "Severity": "low",
+            "RuleVersion": "VMCH-80-000189",
+            "Action": "CheckOnly",
+            "CheckType": "AdvancedSetting",
+            "CheckParams": {
+                "Name": "isolation.tools.copy.disable",
+                "ExpectedValue": "true",
+                "MissingIsPass": true
+            },
+            "FindingDetails": "Verified isolation.tools.copy.disable is set to true or does not exist (default-safe).",
+            "ManualRemediationNote": "Set isolation.tools.copy.disable = true via PowerCLI or vSphere Client. VM must be cold-started for setting to take effect."
+        },
+        "V-258704": {
+            "Title": "Virtual machines (VMs) must have drag and drop operations disabled.",
+            "Severity": "low",
+            "RuleVersion": "VMCH-80-000191",
+            "Action": "CheckOnly",
+            "CheckType": "AdvancedSetting",
+            "CheckParams": {
+                "Name": "isolation.tools.dnd.disable",
+                "ExpectedValue": "true",
+                "MissingIsPass": true
+            },
+            "FindingDetails": "Verified isolation.tools.dnd.disable is set to true or does not exist (default-safe).",
+            "ManualRemediationNote": "Set isolation.tools.dnd.disable = true via PowerCLI."
+        },
+        "V-258705": {
+            "Title": "Virtual machines (VMs) must have paste operations disabled.",
+            "Severity": "low",
+            "RuleVersion": "VMCH-80-000192",
+            "Action": "CheckOnly",
+            "CheckType": "AdvancedSetting",
+            "CheckParams": {
+                "Name": "isolation.tools.paste.disable",
+                "ExpectedValue": "true",
+                "MissingIsPass": true
+            },
+            "FindingDetails": "Verified isolation.tools.paste.disable is set to true or does not exist (default-safe).",
+            "ManualRemediationNote": "Set isolation.tools.paste.disable = true via PowerCLI."
+        },
+        "V-258706": {
+            "Title": "Virtual machines (VMs) must have virtual disk shrinking disabled.",
+            "Severity": "medium",
+            "RuleVersion": "VMCH-80-000193",
+            "Action": "CheckOnly",
+            "CheckType": "AdvancedSetting",
+            "CheckParams": {
+                "Name": "isolation.tools.diskShrink.disable",
+                "ExpectedValue": "true",
+                "MissingIsPass": true
+            },
+            "FindingDetails": "Verified isolation.tools.diskShrink.disable is set to true or does not exist (default-safe).",
+            "ManualRemediationNote": "Set isolation.tools.diskShrink.disable = true via PowerCLI."
+        },
+        "V-258707": {
+            "Title": "Virtual machines (VMs) must have virtual disk wiping disabled.",
+            "Severity": "medium",
+            "RuleVersion": "VMCH-80-000194",
+            "Action": "CheckOnly",
+            "CheckType": "AdvancedSetting",
+            "CheckParams": {
+                "Name": "isolation.tools.diskWiper.disable",
+                "ExpectedValue": "true",
+                "MissingIsPass": true
+            },
+            "FindingDetails": "Verified isolation.tools.diskWiper.disable is set to true or does not exist (default-safe).",
+            "ManualRemediationNote": "Set isolation.tools.diskWiper.disable = true via PowerCLI."
+        },
+        "V-258708": {
+            "Title": "Virtual machines (VMs) must limit console sharing.",
+            "Severity": "medium",
+            "RuleVersion": "VMCH-80-000195",
+            "Action": "CheckOnly",
+            "CheckType": "AdvancedSetting",
+            "CheckParams": {
+                "Name": "RemoteDisplay.maxConnections",
+                "ExpectedValue": "1",
+                "MissingIsPass": false
+            },
+            "FindingDetails": "Verified RemoteDisplay.maxConnections is set to 1.",
+            "ManualRemediationNote": "Set RemoteDisplay.maxConnections = 1. Must exist (missing is a finding)."
+        },
+        "V-258709": {
+            "Title": "Virtual machines (VMs) must limit informational messages from the virtual machine to the VMX file.",
+            "Severity": "low",
+            "RuleVersion": "VMCH-80-000196",
+            "Action": "CheckOnly",
+            "CheckType": "AdvancedSetting",
+            "CheckParams": {
+                "Name": "tools.setinfo.sizeLimit",
+                "ExpectedValue": "1048576",
+                "MissingIsPass": true
+            },
+            "FindingDetails": "Verified tools.setinfo.sizeLimit is set to 1048576 or does not exist (default-safe).",
+            "ManualRemediationNote": "Set tools.setinfo.sizeLimit = 1048576 via PowerCLI."
+        },
+        "V-258710": {
+            "Title": "Virtual machines (VMs) must prevent unauthorized removal, connection, and modification of devices.",
+            "Severity": "medium",
+            "RuleVersion": "VMCH-80-000197",
+            "Action": "CheckOnly",
+            "CheckType": "AdvancedSetting",
+            "CheckParams": {
+                "Name": "isolation.device.connectable.disable",
+                "ExpectedValue": "true",
+                "MissingIsPass": true
+            },
+            "FindingDetails": "Verified isolation.device.connectable.disable is set to true or does not exist (default-safe).",
+            "ManualRemediationNote": "Set isolation.device.connectable.disable = true via PowerCLI."
+        },
+        "V-258711": {
+            "Title": "Virtual machines (VMs) must not be able to obtain host information from the hypervisor.",
+            "Severity": "medium",
+            "RuleVersion": "VMCH-80-000198",
+            "Action": "CheckOnly",
+            "CheckType": "AdvancedSetting",
+            "CheckParams": {
+                "Name": "tools.guestlib.enableHostInfo",
+                "ExpectedValue": "false",
+                "MissingIsPass": true
+            },
+            "FindingDetails": "Verified tools.guestlib.enableHostInfo is set to false or does not exist (default-safe).",
+            "ManualRemediationNote": "Set tools.guestlib.enableHostInfo = false via PowerCLI."
+        },
+        "V-258712": {
+            "Title": "Virtual machines (VMs) must have shared salt values disabled.",
+            "Severity": "low",
+            "RuleVersion": "VMCH-80-000199",
+            "Action": "CheckOnly",
+            "CheckType": "AdvancedSetting",
+            "CheckParams": {
+                "Name": "sched.mem.pshare.salt",
+                "ExpectedValue": "ABSENT"
+            },
+            "FindingDetails": "Verified sched.mem.pshare.salt setting does not exist.",
+            "ManualRemediationNote": "Remove sched.mem.pshare.salt setting: Get-VM | Get-AdvancedSetting -Name sched.mem.pshare.salt | Remove-AdvancedSetting"
+        },
+        "V-258713": {
+            "Title": "Virtual machines (VMs) must disable access through the dvfilter network API.",
+            "Severity": "low",
+            "RuleVersion": "VMCH-80-000200",
+            "Action": "CheckOnly",
+            "CheckType": "AdvancedSetting",
+            "CheckParams": {
+                "Name": "ethernet*.filter*.name*",
+                "ExpectedValue": "ABSENT"
+            },
+            "FindingDetails": "Verified no ethernet*.filter*.name settings exist.",
+            "ManualRemediationNote": "If dvfilter is not in use, remove any ethernet*.filter*.name settings via PowerCLI."
+        },
+        "V-258714": {
+            "Title": "Virtual machines (VMs) must be configured to lock when the last console connection is closed.",
+            "Severity": "medium",
+            "RuleVersion": "VMCH-80-000201",
+            "Action": "CheckOnly",
+            "CheckType": "AdvancedSetting",
+            "CheckParams": {
+                "Name": "tools.guest.desktop.autolock",
+                "ExpectedValue": "true",
+                "MissingIsPass": true
+            },
+            "FindingDetails": "Verified tools.guest.desktop.autolock is set to true or does not exist (Windows-only; NA elsewhere).",
+            "ManualRemediationNote": "Windows VMs only: set tools.guest.desktop.autolock = true via PowerCLI."
+        },
+        "V-258715": {
+            "Title": "Virtual machines (VMs) must disable 3D features when not required.",
+            "Severity": "low",
+            "RuleVersion": "VMCH-80-000202",
+            "Action": "CheckOnly",
+            "CheckType": "AdvancedSetting",
+            "CheckParams": {
+                "Name": "mks.enable3d",
+                "ExpectedValue": "false",
+                "MissingIsPass": true
+            },
+            "FindingDetails": "Verified mks.enable3d is set to false or does not exist (default-safe).",
+            "ManualRemediationNote": "Set mks.enable3d = false for VMs that do not require 3D."
+        },
+        "V-258716": {
+            "Title": "Virtual machines (VMs) must enable encryption for vMotion.",
+            "Severity": "medium",
+            "RuleVersion": "VMCH-80-000203",
+            "Action": "CheckOnly",
+            "CheckType": "VMConfig",
+            "CheckParams": {
+                "Property": "MigrateEncryption",
+                "ExpectedValues": [ "opportunistic", "required" ]
+            },
+            "FindingDetails": "Verified MigrateEncryption is set to opportunistic or required.",
+            "ManualRemediationNote": "Edit VM Options >> Encryption; set Encrypted vMotion to Opportunistic or Required."
+        },
+        "V-258717": {
+            "Title": "Virtual machines (VMs) must enable encryption for Fault Tolerance.",
+            "Severity": "medium",
+            "RuleVersion": "VMCH-80-000204",
+            "Action": "CheckOnly",
+            "CheckType": "VMConfig",
+            "CheckParams": {
+                "Property": "FtEncryptionMode",
+                "ExpectedValues": [ "ftEncryptionOpportunistic", "ftEncryptionRequired" ],
+                "NA_When_Null": true,
+                "NA_Reason": "Fault Tolerance is not enabled for this VM."
+            },
+            "FindingDetails": "Verified FtEncryptionMode is set to Opportunistic or Required.",
+            "ManualRemediationNote": "If FT is enabled, set Encrypted FT to Opportunistic or Required via VM Options >> Encryption."
+        },
+        "V-258718": {
+            "Title": "Virtual machines (VMs) must configure log size.",
+            "Severity": "medium",
+            "RuleVersion": "VMCH-80-000205",
+            "Action": "CheckOnly",
+            "CheckType": "AdvancedSetting",
+            "CheckParams": {
+                "Name": "log.rotateSize",
+                "ExpectedValue": "2048000",
+                "MissingIsPass": true
+            },
+            "FindingDetails": "Verified log.rotateSize is set to 2048000 or does not exist (default-safe).",
+            "ManualRemediationNote": "Set log.rotateSize = 2048000 via PowerCLI."
+        },
+        "V-258719": {
+            "Title": "Virtual machines (VMs) must configure log retention.",
+            "Severity": "medium",
+            "RuleVersion": "VMCH-80-000206",
+            "Action": "CheckOnly",
+            "CheckType": "AdvancedSetting",
+            "CheckParams": {
+                "Name": "log.keepOld",
+                "ExpectedValue": "10",
+                "MissingIsPass": true
+            },
+            "FindingDetails": "Verified log.keepOld is set to 10 or does not exist (default-safe).",
+            "ManualRemediationNote": "Set log.keepOld = 10 via PowerCLI."
+        },
+        "V-258720": {
+            "Title": "Virtual machines (VMs) must enable logging.",
+            "Severity": "medium",
+            "RuleVersion": "VMCH-80-000207",
+            "Action": "CheckOnly",
+            "CheckType": "VMConfig",
+            "CheckParams": {
+                "Property": "Flags.EnableLogging",
+                "ExpectedValues": [ "True", "true" ]
+            },
+            "FindingDetails": "Verified logging is enabled for this VM.",
+            "ManualRemediationNote": "Edit VM Options >> Advanced; check 'Enable logging'."
+        },
+        "V-258721": {
+            "Title": "Virtual machines (VMs) must not use independent, nonpersistent disks.",
+            "Severity": "medium",
+            "RuleVersion": "VMCH-80-000208",
+            "Action": "CheckOnly",
+            "CheckType": "VirtualDisk",
+            "CheckParams": {
+                "Persistence": "IndependentNonPersistent",
+                "ShouldExist": false
+            },
+            "FindingDetails": "Verified no disks are configured as IndependentNonPersistent.",
+            "ManualRemediationNote": "Change disk mode to Persistent or IndependentPersistent via Edit Settings."
+        },
+        "V-258722": {
+            "Title": "Virtual machines (VMs) must remove unneeded floppy devices.",
+            "Severity": "medium",
+            "RuleVersion": "VMCH-80-000209",
+            "Action": "CheckOnly",
+            "CheckType": "VirtualDevice",
+            "CheckParams": {
+                "DeviceType": "Floppy",
+                "ShouldExist": false
+            },
+            "FindingDetails": "Verified no floppy devices are attached.",
+            "ManualRemediationNote": "Remove floppy drive via PowerCLI: Get-VM 'name' | Get-FloppyDrive | Remove-FloppyDrive. VM must be powered off."
+        },
+        "V-258723": {
+            "Title": "Virtual machines (VMs) must remove unneeded CD/DVD devices.",
+            "Severity": "low",
+            "RuleVersion": "VMCH-80-000210",
+            "Action": "CheckOnly",
+            "CheckType": "VirtualDevice",
+            "CheckParams": {
+                "DeviceType": "CD/DVD",
+                "ShouldExist": false,
+                "ConnectedOnly": true
+            },
+            "FindingDetails": "Verified no CD/DVD drives are connected (disconnected drives are acceptable).",
+            "ManualRemediationNote": "Disconnect CD/DVD media: Get-VM 'name' | Get-CDDrive | Set-CDDrive -NoMedia."
+        },
+        "V-258724": {
+            "Title": "Virtual machines (VMs) must remove unneeded parallel devices.",
+            "Severity": "medium",
+            "RuleVersion": "VMCH-80-000211",
+            "Action": "CheckOnly",
+            "CheckType": "VirtualDevice",
+            "CheckParams": {
+                "DeviceType": "Parallel",
+                "ShouldExist": false
+            },
+            "FindingDetails": "Verified no parallel devices are attached.",
+            "ManualRemediationNote": "Remove parallel port via PowerCLI ReconfigVM spec. VM must be powered off."
+        },
+        "V-258725": {
+            "Title": "Virtual machines (VMs) must remove unneeded serial devices.",
+            "Severity": "medium",
+            "RuleVersion": "VMCH-80-000212",
+            "Action": "CheckOnly",
+            "CheckType": "VirtualDevice",
+            "CheckParams": {
+                "DeviceType": "Serial",
+                "ShouldExist": false
+            },
+            "FindingDetails": "Verified no serial devices are attached.",
+            "ManualRemediationNote": "Remove serial port via Edit Settings. VM must be powered off."
+        },
+        "V-258726": {
+            "Title": "Virtual machines (VMs) must remove unneeded USB devices.",
+            "Severity": "medium",
+            "RuleVersion": "VMCH-80-000213",
+            "Action": "CheckOnly",
+            "CheckType": "VirtualDevice",
+            "CheckParams": {
+                "DeviceType": "USB",
+                "ShouldExist": false
+            },
+            "FindingDetails": "Verified no USB devices or controllers are attached. Exception: documented smart card readers.",
+            "ManualRemediationNote": "Remove USB controller via Edit Settings. Smart card readers passed through VM console are exempt."
+        },
+        "V-258727": {
+            "Title": "Virtual machines (VMs) must disable DirectPath I/O devices when not required.",
+            "Severity": "medium",
+            "RuleVersion": "VMCH-80-000214",
+            "Action": "CheckOnly",
+            "CheckType": "PassthroughDevice",
+            "CheckParams": {
+                "ShouldExist": false
+            },
+            "FindingDetails": "Verified no DirectPath I/O (PCI passthrough) devices are attached.",
+            "ManualRemediationNote": "Remove PCI passthrough device: Get-VM 'name' | Get-PassthroughDevice | Remove-PassthroughDevice. Document any approved exceptions."
+        }
+    }
+}
