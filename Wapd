@@ -1,0 +1,175 @@
+Here's the complete consolidated checklist. Admin PowerShell or cmd required for all of this.
+
+**Phase 1 — Baseline the problem (optional but recommended)**
+
+Start a DNS Client ETW trace so you have a before/after comparison.
+
+```powershell
+# Logman version
+logman create trace "DnsTrace" -ow -o C:\temp\dns.etl `
+  -p "Microsoft-Windows-DNS-Client" 0xFFFFFFFF 0xFF `
+  -nb 16 16 -bs 1024 -f bincirc -max 100 -ets
+
+# OR PowerShell native version
+New-EtwTraceSession -Name "DnsTrace" -LocalFilePath "C:\temp\dns.etl" `
+  -MaximumFileSize 100 -LogFileMode 0x00000002
+Add-EtwTraceProvider -SessionName "DnsTrace" `
+  -Guid "{1C95126E-7EEA-49A9-A3FE-A378B03DDB4D}" `
+  -Level 0xFF -MatchAnyKeyword 0xFFFFFFFFFFFFFFFF
+```
+
+Let it run 5-10 minutes, then stop:
+
+```powershell
+logman stop "DnsTrace" -ets
+# OR
+Remove-EtwTraceSession -Name "DnsTrace"
+```
+
+Read it:
+
+```powershell
+Get-WinEvent -Path "C:\temp\dns.etl" -Oldest |
+  Where-Object { $_.Id -eq 3006 } |
+  Select-Object TimeCreated, ProcessId, @{n='Query';e={$_.Properties[0].Value}} |
+  Group-Object ProcessId, Query | Sort-Object Count -Descending
+```
+
+**Phase 2 — Disable LLMNR (port 5355)**
+
+Registry (PowerShell):
+```powershell
+New-Item -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\DNSClient" -Force | Out-Null
+Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\DNSClient" -Name "EnableMulticast" -Value 0 -Type DWord
+```
+
+GPO path: `Computer Configuration → Administrative Templates → Network → DNS Client → Turn off multicast name resolution → Enabled`
+
+**Phase 3 — Disable mDNS (port 5353)**
+
+Registry (PowerShell):
+```powershell
+Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\Dnscache\Parameters" -Name "EnableMDNS" -Value 0 -Type DWord
+```
+
+No GPO template for this one by default — registry only. Reboot required.
+
+**Phase 4 — Disable WPAD**
+
+Check first whether anything needs it:
+```powershell
+netsh winhttp show proxy
+Get-ItemProperty "HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings" | Select-Object AutoConfigURL, AutoDetect, ProxyServer, ProxyEnable
+```
+
+If `AutoConfigURL` is empty and `AutoDetect` is 0, you're safe to disable. If either is set, skip this phase or confirm with whoever manages the proxy config.
+
+Registry (PowerShell):
+```powershell
+New-Item -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Internet Settings\Wpad" -Force | Out-Null
+Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Internet Settings\Wpad" -Name "WpadOverride" -Value 1 -Type DWord
+```
+
+Also clear any WinHTTP-level proxy and turn off auto-detect for the current user:
+
+```cmd
+netsh winhttp reset proxy
+```
+```powershell
+Set-ItemProperty "HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings" -Name "AutoDetect" -Value 0 -Type DWord
+```
+
+GPO path: `User Configuration → Administrative Templates → Windows Components → Internet Explorer → Disable changing Automatic Configuration settings` (indirect — the cleaner GPO method is to deploy a Proxy Settings policy with auto-detect explicitly off).
+
+Service-level option (more aggressive, only if you never want WPAD at all):
+```powershell
+Stop-Service WinHttpAutoProxySvc -Force
+Set-Service WinHttpAutoProxySvc -StartupType Disabled
+```
+
+**Phase 5 — Disable IPv6 transition technologies (Teredo, 6to4, ISATAP)**
+
+PowerShell (preferred — surgical, leaves IP Helper service running):
+```powershell
+Set-NetTeredoConfiguration -Type Disabled
+Set-Net6to4Configuration -State Disabled
+Set-NetIsatapConfiguration -State Disabled
+```
+
+Registry equivalent:
+```powershell
+New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip6\Parameters" -Force | Out-Null
+Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip6\Parameters" -Name "DisabledComponents" -Value 0x01 -Type DWord
+```
+
+Note: `DisabledComponents` is a bitmask. `0x01` disables tunnel interfaces. `0xFF` disables all IPv6. Don't use `0xFF` unless you're sure nothing on your network needs IPv6.
+
+GPO path: `Computer Configuration → Administrative Templates → Network → TCPIP Settings → IPv6 Transition Technologies` — separate policies for Teredo, 6to4, ISATAP, each set to Disabled State.
+
+Service-level option (most aggressive, kills all of IP Helper):
+```powershell
+Stop-Service iphlpsvc -Force
+Set-Service iphlpsvc -StartupType Disabled
+```
+
+Only do this if you don't need DirectAccess and don't use any software that depends on the IP Helper API.
+
+**Phase 6 — Disable NetBIOS over TCP/IP (belt-and-suspenders)**
+
+NetBIOS is another legacy fallback that generates broadcast traffic (UDP 137/138) and is exploitable by the same Responder-style attacks as LLMNR. Usually worth turning off at the same time.
+
+Per-adapter via PowerShell:
+```powershell
+Get-WmiObject -Class Win32_NetworkAdapterConfiguration -Filter "IPEnabled=True" |
+  ForEach-Object { $_.SetTcpipNetbios(2) }
+```
+
+The `2` means "Disable NetBIOS over TCP/IP." `0` is "default from DHCP," `1` is "enabled."
+
+GPO path: no direct template — deploy via DHCP option 1 (Microsoft disable NetBIOS option) or a startup script running the above.
+
+**Phase 7 — Reboot**
+
+```powershell
+Restart-Computer
+```
+
+Most of the DNS Client and TCP/IP changes don't fully take effect until a reboot.
+
+**Phase 8 — Verify**
+
+Re-run the trace from Phase 1. The 5353/5355 queries should be gone or drastically reduced. If anything's still showing up, the query name in the trace will tell you what's still asking.
+
+Quick sanity checks:
+```powershell
+# Confirm mDNS is off
+Get-ItemProperty "HKLM:\SYSTEM\CurrentControlSet\Services\Dnscache\Parameters" -Name EnableMDNS
+
+# Confirm LLMNR is off
+Get-ItemProperty "HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\DNSClient" -Name EnableMulticast
+
+# Confirm IPv6 transition tech is off
+Get-NetTeredoConfiguration
+Get-Net6to4Configuration
+Get-NetIsatapConfiguration
+
+# Confirm NetBIOS is off per adapter
+Get-WmiObject -Class Win32_NetworkAdapterConfiguration -Filter "IPEnabled=True" |
+  Select-Object Description, TcpipNetbiosOptions
+# TcpipNetbiosOptions should be 2
+
+# Confirm WPAD
+netsh winhttp show proxy
+```
+
+**Summary of what this accomplishes:**
+
+- 5355 (LLMNR) → gone at source
+- 5353 (mDNS) → gone at source
+- 137/138 (NetBIOS) → gone at source
+- `wpad` queries → gone at source
+- `isatap.*` / `teredo.*` queries → gone at source
+- `_ldap._tcp.dc._msdcs.*` → still happens if domain-joined (that's Netlogon, leave it)
+- NCSI probes to `msftconnecttest.com` / `msftncsi.com` → still happen (don't kill these, they're how Windows determines if it has internet)
+
+That's the complete source-side elimination. Nothing on this list involves firewall filtering — it's all turning off the actual generating subsystems.
